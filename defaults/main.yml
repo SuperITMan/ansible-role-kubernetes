@@ -14,6 +14,16 @@ kubernetes_version_rhel_package: '1.17.2'
 
 kubernetes_role: master
 
+kubernetes_image_registry: 'k8s.gcr.io'
+
+kubernetes_calico_image_registry: 'docker.io'
+kubernetes_calico_image_registry_username: ''
+kubernetes_calico_image_registry_password: ''
+
+kubernetes_flannel_image_registry: 'quay.io'
+kubernetes_flannel_image_registry_username: ''
+kubernetes_flannel_image_registry_password: ''
+
 kubernetes_kubelet_extra_args: ""
 kubernetes_kubeadm_init_extra_opts: ""
 kubernetes_join_command_extra_opts: ""
@@ -46,4 +56,4 @@ kubernetes_flannel_manifest_file_rbac: https://raw.githubusercontent.com/coreos/
 kubernetes_flannel_manifest_file: https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
 
 # Calico config files
-kubernetes_calico_manifest_file: https://docs.projectcalico.org/v3.10/manifests/calico.yaml
+kubernetes_calico_manifest_file: https://docs.projectcalico.org/manifests/calico.yaml

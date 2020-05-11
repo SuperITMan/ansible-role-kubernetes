@@ -1,0 +1,59 @@
+---
+- name: Setup flannel with custom registry.
+  block:
+    - name: Copy flannel template folder in /tmp
+      copy:
+        src: "{{ role_path }}/files/flannel-ansible"
+        dest: "/tmp"
+
+    - name: Download Flannel manifest.
+      get_url:
+        url: "{{ kubernetes_flannel_manifest_file }}"
+        dest: /tmp/flannel-ansible/kube-flannel.yml
+
+    - name: Adapt container image to use the custom registry.
+      replace:
+        path: /tmp/flannel-ansible/kube-flannel.yml
+        regexp: "image\\:\\ quay.io\\/"
+        replace: "image: {{ kubernetes_flannel_image_registry }}/"
+
+    - name: Set flannel registry credentials
+      shell: "kubectl create secret docker-registry flannel-regcred -n kube-system --docker-server={{ kubernetes_flannel_image_registry }} --docker-username={{ kubernetes_flannel_image_registry_username }} --docker-password={{ kubernetes_flannel_image_registry_password }}"
+      when:
+        - kubernetes_flannel_image_registry_username != ''
+        - kubernetes_flannel_image_registry_password != ''
+      register: flannel_credentials_result
+      failed_when:
+        - '"(AlreadyExists): secrets \"flannel-regcred\" already exists" not in flannel_credentials_result.stderr'
+        - '"secret/flannel-regcred created" not in flannel_credentials_result.stdout'
+
+    - name: Add imagePullSecrets configuration if credentials defined for flannel_registry
+      shell: kubectl kustomize /tmp/flannel-ansible > /tmp/kube-flannel.yaml
+      when:
+        - kubernetes_flannel_image_registry_username != ''
+        - kubernetes_flannel_image_registry_password != ''
+
+    - name: Copy /tmp/flannel-ansible/kube-flannel.yml in /tmp/kube-flannel.yml if no credentials
+      copy:
+        src: /tmp/flannel-ansible/kube-flannel.yml
+        dest: /tmp/kube-flannel.yml
+      when: kubernetes_flannel_image_registry_username == '' or kubernetes_flannel_image_registry_password == ''
+
+    - name:  "Configure Flannel networking from /tmp/flannel-ansible/kube-flannel.yml and {{ kubernetes_flannel_manifest_file_rbac }}"
+      command: "{{ item }}"
+      with_items:
+        - kubectl apply -f {{ kubernetes_flannel_manifest_file_rbac }}
+        - kubectl apply -f /tmp/kube-flannel.yml
+      register: flannel_result
+      changed_when: "'created' in flannel_result.stdout"
+
+  when: kubernetes_flannel_image_registry != 'quay.io'
+
+- name: "Configure Flannel networking from {{ kubernetes_flannel_manifest_file }} and {{ kubernetes_flannel_manifest_file_rbac }}"
+  command: "{{ item }}"
+  with_items:
+    - kubectl apply -f {{ kubernetes_flannel_manifest_file_rbac }}
+    - kubectl apply -f {{ kubernetes_flannel_manifest_file }}
+  register: flannel_result
+  changed_when: "'created' in flannel_result.stdout"
+  when: kubernetes_flannel_image_registry == 'quay.io'

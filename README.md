@@ -70,6 +70,20 @@ Whether to enable the Kubernetes web dashboard UI (only accessible on the master
 
 This role currently supports `flannel` (default), `calico` or `weave` for cluster pod networking. Choose only one for your cluster; converting between them is not done automatically and could result in broken networking; if you need to switch from one to another, it should be done outside of this role.
 
+    kubernetes_image_registry: 'k8s.gcr.io'
+    
+    kubernetes_calico_image_registry: 'docker.io'
+    kubernetes_calico_image_registry_username: ''
+    kubernetes_calico_image_registry_password: ''
+    
+    kubernetes_flannel_image_registry: 'quay.io'
+    kubernetes_flannel_image_registry_username: ''
+    kubernetes_flannel_image_registry_password: ''
+
+This role currently supports custom registries for `calico` and `flanel` networking. It also offers the ability to customize the kubernetes registry.
+
+> ⚠ `kubernetes_image_registry` must authorize anonymous connections. Otherwise you `kubeadm` cannot initialize the cluster
+
     kubernetes_apiserver_advertise_address: ''
     kubernetes_version_kubeadm: 'stable-{{ kubernetes_version }}'
     kubernetes_ignore_preflight_errors: 'all'

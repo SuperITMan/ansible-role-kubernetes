@@ -1,0 +1,53 @@
+---
+- name: Setup calico with custom registry.
+  block:
+    - name: Copy calico template folder in /tmp
+      copy:
+        src: "{{ role_path }}/files/calico-ansible"
+        dest: "/tmp"
+
+    - name: Download Calico manifest.
+      get_url:
+        url: "{{ kubernetes_calico_manifest_file }}"
+        dest: /tmp/calico-ansible/calico.yaml
+
+    - name: Adapt container image to use the custom registry.
+      replace:
+        path: /tmp/calico-ansible/calico.yaml
+        regexp: "image\\:\\ calico\\/"
+        replace: "image: {{ kubernetes_calico_image_registry }}/calico/"
+
+    - name: Set calico registry credentials
+      shell: "kubectl create secret docker-registry calico-regcred -n kube-system --docker-server={{ kubernetes_calico_image_registry }} --docker-username={{ kubernetes_calico_image_registry_username }} --docker-password={{ kubernetes_calico_image_registry_password }}"
+      when:
+        - kubernetes_calico_image_registry_username != ''
+        - kubernetes_calico_image_registry_password != ''
+      register: calico_credentials_result
+      failed_when:
+        - '"(AlreadyExists): secrets \\\"calico-regcred\\\" already exists" not in calico_credentials_result.stderr'
+        - '"secret/calico-regcred created" not in calico_credentials_result.stdout'
+
+    - name: Add imagePullSecrets configuration if credentials defined for calico_registry
+      shell: kubectl kustomize /tmp/calico-ansible > /tmp/calico.yaml
+      when:
+        - kubernetes_calico_image_registry_username != ''
+        - kubernetes_calico_image_registry_password != ''
+
+    - name: Copy /tmp/calico-ansible/calico.yml in /tmp/calico.yml if no credentials
+      copy:
+        src: /tmp/calico-ansible/calico.yml
+        dest: /tmp/calico.yml
+      when: kubernetes_calico_image_registry_username == '' or kubernetes_calico_image_registry_password == ''
+
+    - name:  "Configure Calico networking from /tmp/calico-ansible/calico.yaml"
+      command: "kubectl apply -f /tmp/calico.yaml"
+      register: calico_result
+      changed_when: "'created' in calico_result.stdout"
+
+  when: kubernetes_calico_image_registry != 'docker.io'
+
+- name:  "Configure Calico networking from {{ kubernetes_calico_manifest_file }}"
+  command: "kubectl apply -f {{ kubernetes_calico_manifest_file }}"
+  register: calico_result
+  changed_when: "'created' in calico_result.stdout"
+  when: kubernetes_calico_image_registry == 'docker.io'
