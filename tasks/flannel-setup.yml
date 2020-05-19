@@ -6,10 +6,15 @@
         src: "{{ role_path }}/files/flannel-ansible"
         dest: "/tmp"
 
+    - name: Check internet access before downloading latest version
+      shell: "ping -c 2 raw.githubusercontent.com"
+      register: flannel_internet_check_result
+
     - name: Download Flannel manifest.
       get_url:
         url: "{{ kubernetes_flannel_manifest_file }}"
         dest: /tmp/flannel-ansible/kube-flannel.yml
+      when: '", 0% packet loss" in flannel_internet_check_result.stdout'
 
     - name: Adapt container image to use the custom registry.
       replace:

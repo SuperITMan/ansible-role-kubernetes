@@ -6,10 +6,15 @@
         src: "{{ role_path }}/files/calico-ansible"
         dest: "/tmp"
 
+    - name: Check internet access before downloading latest version
+      shell: "ping -c 2 docs.projectcalico.org"
+      register: calico_internet_check_result
+
     - name: Download Calico manifest.
       get_url:
         url: "{{ kubernetes_calico_manifest_file }}"
         dest: /tmp/calico-ansible/calico.yaml
+      when: '", 0% packet loss" in calico_internet_check_result.stdout'
 
     - name: Adapt container image to use the custom registry.
       replace:
